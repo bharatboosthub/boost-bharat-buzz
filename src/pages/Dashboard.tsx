@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AdminChannel } from "@/components/AdminChannel";
 import { CoinDisplay } from "@/components/CoinDisplay";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,14 @@ const Dashboard = () => {
   const [coins, setCoins] = useState(0);
   const [hasUsedFreeUpload, setHasUsedFreeUpload] = useState(false);
   const navigate = useNavigate();
+
+  // Load coins from localStorage on component mount
+  useEffect(() => {
+    const savedCoins = localStorage.getItem('userCoins');
+    if (savedCoins) {
+      setCoins(parseInt(savedCoins, 10));
+    }
+  }, []);
 
   const handleLogout = () => {
     navigate("/");
