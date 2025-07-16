@@ -21,9 +21,11 @@ const Login = () => {
     // Simulate login process
     setTimeout(() => {
       setIsLoading(false);
+      // Give 5 coins on login
+      localStorage.setItem('userCoins', '5');
       toast({
         title: "Welcome back!",
-        description: "Successfully logged in to Bharat Boost Hub",
+        description: "Successfully logged in to Bharat Boost Hub. You received 5 coins!",
       });
       navigate("/dashboard");
     }, 1500);
@@ -36,9 +38,11 @@ const Login = () => {
     // Simulate registration process
     setTimeout(() => {
       setIsLoading(false);
+      // Give 5 coins on registration
+      localStorage.setItem('userCoins', '5');
       toast({
         title: "Account created!",
-        description: "Welcome to Bharat Boost Hub! You've received 1 free video upload.",
+        description: "Welcome to Bharat Boost Hub! You received 5 coins for your first video upload.",
       });
       navigate("/dashboard");
     }, 1500);
