@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminChannel } from "@/components/AdminChannel";
 import { CoinDisplay } from "@/components/CoinDisplay";
@@ -11,9 +11,22 @@ import { toast } from "@/hooks/use-toast";
 const UploadPage = () => {
   const [videoUrl, setVideoUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [coins] = useState(0); // This would come from user context
-  const [hasUsedFreeUpload] = useState(false);
+  const [coins, setCoins] = useState(0);
+  const [hasUsedFreeUpload, setHasUsedFreeUpload] = useState(false);
   const navigate = useNavigate();
+
+  // Load coins and upload status from localStorage
+  useEffect(() => {
+    const savedCoins = localStorage.getItem('userCoins');
+    const usedFreeUpload = localStorage.getItem('hasUsedFreeUpload');
+    
+    if (savedCoins) {
+      setCoins(parseInt(savedCoins, 10));
+    }
+    if (usedFreeUpload === 'true') {
+      setHasUsedFreeUpload(true);
+    }
+  }, []);
 
   const extractVideoId = (url: string) => {
     const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
@@ -34,7 +47,7 @@ const UploadPage = () => {
       return;
     }
 
-    if (!hasUsedFreeUpload && coins < 5) {
+    if (hasUsedFreeUpload && coins < 5) {
       toast({
         title: "Insufficient coins",
         description: "You need 5 coins to upload a video. Earn coins by watching videos first!",
@@ -45,18 +58,51 @@ const UploadPage = () => {
 
     setIsLoading(true);
 
-    // Simulate video processing
-    setTimeout(() => {
+    try {
+      // Store the uploaded video in localStorage
+      const uploadedVideos = JSON.parse(localStorage.getItem('uploadedVideos') || '[]');
+      const newVideo = {
+        id: Date.now().toString(),
+        url: videoUrl,
+        videoId: videoId,
+        title: `Video ${uploadedVideos.length + 1}`, // We'll enhance this later with API
+        uploadedAt: new Date().toISOString(),
+        isFirstUpload: !hasUsedFreeUpload
+      };
+      
+      uploadedVideos.push(newVideo);
+      localStorage.setItem('uploadedVideos', JSON.stringify(uploadedVideos));
+      
+      // Handle coin deduction and free upload status
+      if (!hasUsedFreeUpload) {
+        localStorage.setItem('hasUsedFreeUpload', 'true');
+        setHasUsedFreeUpload(true);
+      } else {
+        const newCoins = coins - 5;
+        localStorage.setItem('userCoins', newCoins.toString());
+        setCoins(newCoins);
+      }
+
+      // Simulate video processing
+      setTimeout(() => {
+        setIsLoading(false);
+        toast({
+          title: "Video uploaded successfully!",
+          description: !hasUsedFreeUpload ? "Welcome bonus: Your first upload is free!" : "Video added to promotion queue.",
+        });
+        navigate("/dashboard");
+      }, 2000);
+    } catch (error) {
       setIsLoading(false);
       toast({
-        title: "Video uploaded successfully!",
-        description: hasUsedFreeUpload ? "Video added to promotion queue." : "Welcome bonus: Your first upload is free!",
+        title: "Upload failed",
+        description: "Please try again later",
+        variant: "destructive",
       });
-      navigate("/dashboard");
-    }, 2000);
+    }
   };
 
-  const cost = hasUsedFreeUpload ? 0 : 5;
+  const cost = hasUsedFreeUpload ? 5 : 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -133,14 +179,14 @@ const UploadPage = () => {
                 </div>
 
                 {/* Warning if insufficient coins */}
-                {!hasUsedFreeUpload && coins < 5 && (
+                {hasUsedFreeUpload && coins < 5 && (
                   <div className="bg-destructive/10 border border-destructive/20 p-4 rounded-lg">
                     <div className="flex items-center gap-2 text-destructive">
                       <AlertCircle className="w-4 h-4" />
                       <span className="font-medium">Insufficient Coins</span>
                     </div>
                     <p className="text-sm text-destructive/80 mt-1">
-                      You need {5 - coins} more coins to upload videos after your free upload.
+                      You need {5 - coins} more coins to upload videos.
                     </p>
                     <Button
                       type="button"
@@ -157,7 +203,7 @@ const UploadPage = () => {
                 <Button 
                   type="submit" 
                   className="w-full btn-youtube"
-                  disabled={isLoading || (!hasUsedFreeUpload && coins < 5)}
+                  disabled={isLoading || (hasUsedFreeUpload && coins < 5)}
                 >
                   {isLoading ? "Processing..." : !hasUsedFreeUpload ? "Upload Free Video" : `Upload Video (${cost} coins)`}
                 </Button>

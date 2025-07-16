@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminChannel } from "@/components/AdminChannel";
 import { CoinDisplay } from "@/components/CoinDisplay";
+import { VideoPlayer } from "@/components/VideoPlayer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Play, Heart, UserPlus, ExternalLink, Clock } from "lucide-react";
@@ -15,43 +16,76 @@ interface VideoItem {
   views: string;
   duration: string;
   url: string;
+  videoId: string;
+  isUserUploaded?: boolean;
 }
 
 const EarnPage = () => {
   const [coins, setCoins] = useState(0);
   const [watchedVideos, setWatchedVideos] = useState<Set<string>>(new Set());
+  const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
   const navigate = useNavigate();
 
-  // Sample videos (in real app, this would come from API)
-  const videos: VideoItem[] = [
-    {
-      id: "1",
-      title: "Amazing Landscape Photography Tips for Beginners",
-      thumbnail: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=320&h=180&fit=crop",
-      channel: "PhotoMaster",
-      views: "15K views",
-      duration: "8:45",
-      url: "https://youtube.com/watch?v=sample1"
-    },
-    {
-      id: "2", 
-      title: "How to Start Your YouTube Channel in 2024",
-      thumbnail: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=320&h=180&fit=crop",
-      channel: "CreatorHub",
-      views: "32K views", 
-      duration: "12:30",
-      url: "https://youtube.com/watch?v=sample2"
-    },
-    {
-      id: "3",
-      title: "Cooking the Perfect Pasta - Italian Secrets",
-      thumbnail: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=320&h=180&fit=crop",
-      channel: "ChefMario",
-      views: "8.2K views",
-      duration: "6:15", 
-      url: "https://youtube.com/watch?v=sample3"
+  // Load coins and videos from localStorage
+  useEffect(() => {
+    const savedCoins = localStorage.getItem('userCoins');
+    if (savedCoins) {
+      setCoins(parseInt(savedCoins, 10));
     }
-  ];
+
+    // Load uploaded videos from other users
+    const uploadedVideos = JSON.parse(localStorage.getItem('uploadedVideos') || '[]');
+    
+    // Sample videos + user uploaded videos
+    const sampleVideos: VideoItem[] = [
+      {
+        id: "1",
+        title: "Amazing Landscape Photography Tips for Beginners",
+        thumbnail: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=320&h=180&fit=crop",
+        channel: "PhotoMaster",
+        views: "15K views",
+        duration: "8:45",
+        url: "https://youtube.com/watch?v=dQw4w9WgXcQ",
+        videoId: "dQw4w9WgXcQ"
+      },
+      {
+        id: "2", 
+        title: "How to Start Your YouTube Channel in 2024",
+        thumbnail: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=320&h=180&fit=crop",
+        channel: "CreatorHub",
+        views: "32K views", 
+        duration: "12:30",
+        url: "https://youtube.com/watch?v=9bZkp7q19f0",
+        videoId: "9bZkp7q19f0"
+      },
+      {
+        id: "3",
+        title: "Cooking the Perfect Pasta - Italian Secrets",
+        thumbnail: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=320&h=180&fit=crop",
+        channel: "ChefMario",
+        views: "8.2K views",
+        duration: "6:15", 
+        url: "https://youtube.com/watch?v=jNQXAC9IVRw",
+        videoId: "jNQXAC9IVRw"
+      }
+    ];
+
+    // Add user uploaded videos
+    const userVideos = uploadedVideos.map((video: any, index: number) => ({
+      id: video.id,
+      title: video.title || `User Video ${index + 1}`,
+      thumbnail: `https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`,
+      channel: "Community User",
+      views: "New",
+      duration: "??:??",
+      url: video.url,
+      videoId: video.videoId,
+      isUserUploaded: true
+    }));
+
+    setVideos([...sampleVideos, ...userVideos]);
+  }, []);
 
   const handleWatched = (videoId: string, coinsEarned: number) => {
     if (watchedVideos.has(videoId)) {
@@ -64,12 +98,26 @@ const EarnPage = () => {
     }
 
     setWatchedVideos(prev => new Set([...prev, videoId]));
-    setCoins(prev => prev + coinsEarned);
+    const newCoins = coins + coinsEarned;
+    setCoins(newCoins);
+    
+    // Save updated coins to localStorage
+    localStorage.setItem('userCoins', newCoins.toString());
     
     toast({
       title: `+${coinsEarned} coins earned!`,
       description: "Great job! Keep watching to earn more coins.",
     });
+  };
+
+  const handlePlayVideo = (video: VideoItem) => {
+    setSelectedVideo(video);
+  };
+
+  const handleVideoComplete = () => {
+    if (selectedVideo && !watchedVideos.has(selectedVideo.id)) {
+      handleWatched(selectedVideo.id, 5);
+    }
   };
 
   const isVideoWatched = (videoId: string) => watchedVideos.has(videoId);
@@ -132,15 +180,25 @@ const EarnPage = () => {
               <CardContent className="p-6">
                 <div className="flex gap-4">
                   {/* Thumbnail */}
-                  <div className="relative flex-shrink-0">
+                  <div className="relative flex-shrink-0 cursor-pointer" onClick={() => handlePlayVideo(video)}>
                     <img 
                       src={video.thumbnail}
                       alt={video.title}
-                      className="w-40 h-24 object-cover rounded-lg"
+                      className="w-40 h-24 object-cover rounded-lg hover:opacity-80 transition-opacity"
                     />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-black/60 rounded-full p-3 hover:bg-black/80 transition-colors">
+                        <Play className="w-6 h-6 text-white fill-white" />
+                      </div>
+                    </div>
                     <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
                       {video.duration}
                     </div>
+                    {video.isUserUploaded && (
+                      <div className="absolute top-1 left-1 bg-primary text-white text-xs px-2 py-1 rounded">
+                        Community
+                      </div>
+                    )}
                   </div>
                   
                   {/* Video Info */}
@@ -161,12 +219,21 @@ const EarnPage = () => {
                     {/* Action Buttons */}
                     <div className="flex flex-wrap gap-2">
                       <Button
+                        onClick={() => handlePlayVideo(video)}
+                        size="sm"
+                        className="btn-youtube"
+                      >
+                        <Play className="w-4 h-4 mr-1" />
+                        Watch Video
+                      </Button>
+                      
+                      <Button
                         onClick={() => handleWatched(video.id, 5)}
                         disabled={isVideoWatched(video.id)}
                         size="sm"
                         className="btn-success"
                       >
-                        {isVideoWatched(video.id) ? "✓ Watched (+5)" : "Watch (+5 coins)"}
+                        {isVideoWatched(video.id) ? "✓ Watched (+5)" : "Mark Watched (+5)"}
                       </Button>
                       
                       <Button
@@ -226,6 +293,17 @@ const EarnPage = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Video Player Modal */}
+        {selectedVideo && (
+          <VideoPlayer
+            videoId={selectedVideo.videoId}
+            title={selectedVideo.title}
+            isOpen={!!selectedVideo}
+            onClose={() => setSelectedVideo(null)}
+            onVideoComplete={handleVideoComplete}
+          />
+        )}
       </div>
     </div>
   );
