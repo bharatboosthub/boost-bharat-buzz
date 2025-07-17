@@ -97,12 +97,34 @@ const EarnPage = () => {
       return;
     }
 
+    // Check for fraud prevention
+    const earnHistory = JSON.parse(localStorage.getItem('earnHistory') || '[]');
+    const recentEarns = earnHistory.filter((earn: any) => 
+      Date.now() - earn.timestamp < 24 * 60 * 60 * 1000 // 24 hours
+    );
+    
+    if (recentEarns.length > 50) { // Daily limit
+      toast({
+        title: "Daily limit reached",
+        description: "You've reached your daily earning limit. Try again tomorrow!",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setWatchedVideos(prev => new Set([...prev, videoId]));
     const newCoins = coins + coinsEarned;
     setCoins(newCoins);
     
-    // Save updated coins to localStorage
+    // Save updated coins and earn history
     localStorage.setItem('userCoins', newCoins.toString());
+    earnHistory.push({
+      videoId,
+      coinsEarned,
+      timestamp: Date.now(),
+      type: 'watch'
+    });
+    localStorage.setItem('earnHistory', JSON.stringify(earnHistory));
     
     toast({
       title: `+${coinsEarned} coins earned!`,
@@ -114,9 +136,9 @@ const EarnPage = () => {
     setSelectedVideo(video);
   };
 
-  const handleVideoComplete = () => {
+  const handleVideoComplete = (coinsEarned: number) => {
     if (selectedVideo && !watchedVideos.has(selectedVideo.id)) {
-      handleWatched(selectedVideo.id, 5);
+      handleWatched(selectedVideo.id, coinsEarned);
     }
   };
 
@@ -222,36 +244,10 @@ const EarnPage = () => {
                         onClick={() => handlePlayVideo(video)}
                         size="sm"
                         className="btn-youtube"
+                        disabled={isVideoWatched(video.id)}
                       >
                         <Play className="w-4 h-4 mr-1" />
-                        Watch Video
-                      </Button>
-                      
-                      <Button
-                        onClick={() => handleWatched(video.id, 5)}
-                        disabled={isVideoWatched(video.id)}
-                        size="sm"
-                        className="btn-success"
-                      >
-                        {isVideoWatched(video.id) ? "✓ Watched (+5)" : "Mark Watched (+5)"}
-                      </Button>
-                      
-                      <Button
-                        onClick={() => handleWatched(video.id, 10)}
-                        disabled={isVideoWatched(video.id)}
-                        size="sm"
-                        variant="outline"
-                      >
-                        {isVideoWatched(video.id) ? "✓ Subscribed (+10)" : "Subscribe (+10 coins)"}
-                      </Button>
-                      
-                      <Button
-                        onClick={() => handleWatched(video.id, 15)}
-                        disabled={isVideoWatched(video.id)}
-                        size="sm"
-                        variant="outline"
-                      >
-                        {isVideoWatched(video.id) ? "✓ Liked & Subscribed (+15)" : "Like & Subscribe (+15 coins)"}
+                        {isVideoWatched(video.id) ? "✓ Watched (Earned)" : "Watch Video (5+ coins)"}
                       </Button>
                       
                       <Button
@@ -260,6 +256,7 @@ const EarnPage = () => {
                         variant="ghost"
                       >
                         <ExternalLink className="w-4 h-4" />
+                        Direct Link
                       </Button>
                     </div>
                   </div>

@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 
 const UploadPage = () => {
   const [videoUrl, setVideoUrl] = useState("");
+  const [videoTitle, setVideoTitle] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [coins, setCoins] = useState(0);
   const [hasUsedFreeUpload, setHasUsedFreeUpload] = useState(false);
@@ -47,6 +48,15 @@ const UploadPage = () => {
       return;
     }
 
+    if (!videoTitle.trim()) {
+      toast({
+        title: "Title required",
+        description: "Please enter a title for your video",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (hasUsedFreeUpload && coins < 5) {
       toast({
         title: "Insufficient coins",
@@ -65,9 +75,10 @@ const UploadPage = () => {
         id: Date.now().toString(),
         url: videoUrl,
         videoId: videoId,
-        title: `Video ${uploadedVideos.length + 1}`, // We'll enhance this later with API
+        title: videoTitle.trim(),
         uploadedAt: new Date().toISOString(),
-        isFirstUpload: !hasUsedFreeUpload
+        isFirstUpload: !hasUsedFreeUpload,
+        isUserUploaded: true
       };
       
       uploadedVideos.push(newVideo);
@@ -143,7 +154,25 @@ const UploadPage = () => {
               <form onSubmit={handleUpload} className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium mb-2">
-                    YouTube Video URL
+                    Video Title *
+                  </label>
+                  <Input
+                    type="text"
+                    value={videoTitle}
+                    onChange={(e) => setVideoTitle(e.target.value)}
+                    placeholder="Enter a catchy title for your video"
+                    className="text-base"
+                    required
+                    maxLength={100}
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    This title will be shown to other users (max 100 characters)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    YouTube Video URL *
                   </label>
                   <Input
                     type="url"
@@ -203,7 +232,7 @@ const UploadPage = () => {
                 <Button 
                   type="submit" 
                   className="w-full btn-youtube"
-                  disabled={isLoading || (hasUsedFreeUpload && coins < 5)}
+                  disabled={isLoading || (hasUsedFreeUpload && coins < 5) || !videoTitle.trim() || !videoUrl.trim()}
                 >
                   {isLoading ? "Processing..." : !hasUsedFreeUpload ? "Upload Free Video" : `Upload Video (${cost} coins)`}
                 </Button>
