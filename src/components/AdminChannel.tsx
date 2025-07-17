@@ -9,7 +9,7 @@ export const AdminChannel = () => {
             BB
           </div>
           <div className="flex flex-col">
-            <span className="font-semibold text-sm">@bharatbhushanyt</span>
+            <span className="font-semibold text-sm">Bharat Boost Hub</span>
             <span className="text-xs opacity-90 flex items-center gap-1">
               <Users className="w-3 h-3" />
               Subscribe for Updates!
@@ -18,7 +18,7 @@ export const AdminChannel = () => {
         </div>
         
         <a 
-          href="https://www.youtube.com/@bharatbhushanyt"
+          href="https://youtube.com/@bharatboosthub"
           target="_blank"
           rel="noopener noreferrer"
           className="btn-success flex items-center gap-2 text-sm"
