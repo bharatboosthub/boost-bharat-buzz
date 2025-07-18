@@ -15,16 +15,17 @@ interface VideoPlayerProps {
 
 export const VideoPlayer = ({ videoId, title, isOpen, onClose, onVideoComplete }: VideoPlayerProps) => {
   const [watchStartTime, setWatchStartTime] = useState<number | null>(null);
-  const [timeAway, setTimeAway] = useState(0);
+  const [timeSpentWatching, setTimeSpentWatching] = useState(0);
   const [isEligibleForCoins, setIsEligibleForCoins] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
   const [hasClaimedViewCoins, setHasClaimedViewCoins] = useState(false);
+  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
 
     setWatchStartTime(Date.now());
-    setTimeAway(0);
+    setTimeSpentWatching(0);
     setIsEligibleForCoins(false);
     setShowVerification(false);
     setHasClaimedViewCoins(false);
@@ -33,38 +34,35 @@ export const VideoPlayer = ({ videoId, title, isOpen, onClose, onVideoComplete }
     const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}&autoplay=1`;
     window.open(youtubeUrl, '_blank');
 
-    const handleWindowBlur = () => {
-      if (watchStartTime) {
-        const awayTime = Date.now() - watchStartTime;
-        setTimeAway(awayTime);
-      }
-    };
-
-    const handleWindowFocus = () => {
-      if (timeAway >= 180000) { // 3 minutes = 180,000ms
+    // Start 3-minute timer immediately after redirect
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      setTimeSpentWatching(elapsed);
+      
+      if (elapsed >= 180000) { // 3 minutes completed
         setIsEligibleForCoins(true);
+        clearInterval(interval);
         toast({
-          title: "Great! You watched for 3+ minutes",
-          description: "You can now claim your viewing coins and upload a screenshot for bonus coins!",
-        });
-      } else {
-        const remainingTime = Math.ceil((180000 - timeAway) / 1000);
-        toast({
-          title: "Keep watching!",
-          description: `You need ${remainingTime} more seconds to earn coins.`,
-          variant: "destructive",
+          title: "🎉 3 minutes completed!",
+          description: "You can now claim your viewing coins!",
         });
       }
-    };
+    }, 1000);
 
-    window.addEventListener('blur', handleWindowBlur);
-    window.addEventListener('focus', handleWindowFocus);
+    setTimerInterval(interval);
 
     return () => {
-      window.removeEventListener('blur', handleWindowBlur);
-      window.removeEventListener('focus', handleWindowFocus);
+      if (interval) clearInterval(interval);
     };
-  }, [isOpen, watchStartTime, timeAway, videoId]);
+  }, [isOpen, videoId]);
+
+  // Cleanup timer on component unmount
+  useEffect(() => {
+    return () => {
+      if (timerInterval) clearInterval(timerInterval);
+    };
+  }, [timerInterval]);
 
   const handleClaimViewCoins = () => {
     if (!isEligibleForCoins || hasClaimedViewCoins) return;
@@ -151,10 +149,10 @@ export const VideoPlayer = ({ videoId, title, isOpen, onClose, onVideoComplete }
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-lg">
-                      {Math.floor(timeAway / 1000)}s / 180s
+                      {Math.floor(timeSpentWatching / 1000)}s / 180s
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {isEligibleForCoins ? "Ready to claim!" : "Keep watching..."}
+                      {isEligibleForCoins ? "✅ Ready to claim!" : "⏳ Timer running..."}
                     </div>
                   </div>
                 </div>

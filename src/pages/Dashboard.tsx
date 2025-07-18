@@ -3,8 +3,59 @@ import { AdminChannel } from "@/components/AdminChannel";
 import { CoinDisplay } from "@/components/CoinDisplay";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Play, TrendingUp, Gift, LogOut } from "lucide-react";
+import { Upload, Play, TrendingUp, Gift, LogOut, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+
+const MyVideosSection = () => {
+  const [myVideos, setMyVideos] = useState<any[]>([]);
+
+  useEffect(() => {
+    const uploadedVideos = JSON.parse(localStorage.getItem('uploadedVideos') || '[]');
+    const currentUser = localStorage.getItem('currentUser') || 'user1';
+    
+    const userVideos = uploadedVideos.filter((video: any) => video.uploadedBy === currentUser);
+    setMyVideos(userVideos);
+  }, []);
+
+  if (myVideos.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <Upload className="w-12 h-12 mx-auto mb-4 opacity-50" />
+        <p>No videos uploaded yet</p>
+        <p className="text-sm">Upload your first video to see it here!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {myVideos.map((video) => (
+        <div key={video.id} className="flex gap-4 p-4 bg-accent rounded-lg">
+          <img 
+            src={video.thumbnail || `https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`}
+            alt={video.title}
+            className="w-24 h-14 object-cover rounded"
+          />
+          <div className="flex-1 min-w-0">
+            <h4 className="font-medium truncate">{video.title}</h4>
+            <p className="text-sm text-muted-foreground">
+              Uploaded {new Date(video.uploadedAt).toLocaleDateString()}
+            </p>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="mt-2"
+              onClick={() => window.open(video.url, '_blank')}
+            >
+              <ExternalLink className="w-3 h-3 mr-1" />
+              View on YouTube
+            </Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const Dashboard = () => {
   const [coins, setCoins] = useState(0);
@@ -117,18 +168,14 @@ const Dashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-primary" />
-                  My Videos
+                  My Uploaded Videos
                 </CardTitle>
                 <CardDescription>
                   Track your uploaded videos and their performance
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Upload className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No videos uploaded yet</p>
-                  <p className="text-sm">Upload your first video to see it here!</p>
-                </div>
+                <MyVideosSection />
               </CardContent>
             </Card>
           </div>

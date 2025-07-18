@@ -34,10 +34,11 @@ const EarnPage = () => {
       setCoins(parseInt(savedCoins, 10));
     }
 
-    // Load uploaded videos from other users
+    // Load uploaded videos from other users only
     const uploadedVideos = JSON.parse(localStorage.getItem('uploadedVideos') || '[]');
+    const currentUser = localStorage.getItem('currentUser') || 'user1';
     
-    // Sample videos + user uploaded videos
+    // Sample videos
     const sampleVideos: VideoItem[] = [
       {
         id: "1",
@@ -71,18 +72,25 @@ const EarnPage = () => {
       }
     ];
 
-    // Add user uploaded videos
-    const userVideos = uploadedVideos.map((video: any, index: number) => ({
-      id: video.id,
-      title: video.title || `User Video ${index + 1}`,
-      thumbnail: `https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`,
-      channel: "Community User",
-      views: "New",
+    // Filter out current user's videos and show daily rotation of others
+    const otherUsersVideos = uploadedVideos.filter((video: any) => video.uploadedBy !== currentUser);
+    
+    // Show one user video per day (rotate based on day of year)
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
+    const selectedUserVideo = otherUsersVideos.length > 0 ? 
+      otherUsersVideos[dayOfYear % otherUsersVideos.length] : null;
+
+    const userVideos = selectedUserVideo ? [{
+      id: selectedUserVideo.id,
+      title: selectedUserVideo.title || "Community Video",
+      thumbnail: selectedUserVideo.thumbnail || `https://img.youtube.com/vi/${selectedUserVideo.videoId}/maxresdefault.jpg`,
+      channel: "Community Creator",
+      views: "Community Upload",
       duration: "??:??",
-      url: video.url,
-      videoId: video.videoId,
+      url: selectedUserVideo.url,
+      videoId: selectedUserVideo.videoId,
       isUserUploaded: true
-    }));
+    }] : [];
 
     setVideos([...sampleVideos, ...userVideos]);
   }, []);

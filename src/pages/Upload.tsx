@@ -19,7 +19,10 @@ const UploadPage = () => {
   // Load coins and upload status from localStorage
   useEffect(() => {
     const savedCoins = localStorage.getItem('userCoins');
-    const usedFreeUpload = localStorage.getItem('hasUsedFreeUpload');
+    // Get current user ID (could be email or unique identifier)
+    const currentUser = localStorage.getItem('currentUser') || 'user1';
+    const userUploadKey = `hasUsedFreeUpload_${currentUser}`;
+    const usedFreeUpload = localStorage.getItem(userUploadKey);
     
     if (savedCoins) {
       setCoins(parseInt(savedCoins, 10));
@@ -33,6 +36,29 @@ const UploadPage = () => {
     const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
     const match = url.match(regex);
     return match ? match[1] : null;
+  };
+
+  const fetchVideoThumbnail = async (videoId: string) => {
+    try {
+      const response = await fetch(`https://youtube-v31.p.rapidapi.com/videos?part=snippet&id=${videoId}`, {
+        headers: {
+          'X-RapidAPI-Key': 'bc73a476e6msh10240cb95786540p14f225jsn6eef43bdb1d6',
+          'X-RapidAPI-Host': 'youtube-v31.p.rapidapi.com'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.items && data.items[0]) {
+          return data.items[0].snippet.thumbnails?.maxres?.url || 
+                 data.items[0].snippet.thumbnails?.high?.url ||
+                 `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching thumbnail:', error);
+    }
+    return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
   };
 
   const handleUpload = async (e: React.FormEvent) => {
@@ -69,14 +95,21 @@ const UploadPage = () => {
     setIsLoading(true);
 
     try {
+      // Fetch proper thumbnail using YouTube API
+      const thumbnail = await fetchVideoThumbnail(videoId);
+      
       // Store the uploaded video in localStorage
       const uploadedVideos = JSON.parse(localStorage.getItem('uploadedVideos') || '[]');
+      const currentUser = localStorage.getItem('currentUser') || 'user1';
+      
       const newVideo = {
         id: Date.now().toString(),
         url: videoUrl,
         videoId: videoId,
         title: videoTitle.trim(),
+        thumbnail: thumbnail,
         uploadedAt: new Date().toISOString(),
+        uploadedBy: currentUser,
         isFirstUpload: !hasUsedFreeUpload,
         isUserUploaded: true
       };
@@ -84,9 +117,10 @@ const UploadPage = () => {
       uploadedVideos.push(newVideo);
       localStorage.setItem('uploadedVideos', JSON.stringify(uploadedVideos));
       
-      // Handle coin deduction and free upload status
+      // Handle coin deduction and free upload status (per account)
+      const userUploadKey = `hasUsedFreeUpload_${currentUser}`;
       if (!hasUsedFreeUpload) {
-        localStorage.setItem('hasUsedFreeUpload', 'true');
+        localStorage.setItem(userUploadKey, 'true');
         setHasUsedFreeUpload(true);
       } else {
         const newCoins = coins - 5;
