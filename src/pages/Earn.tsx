@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Play, Heart, UserPlus, ExternalLink, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface VideoItem {
   id: string;
@@ -27,75 +28,82 @@ const EarnPage = () => {
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
   const navigate = useNavigate();
 
-  // Load coins and videos from localStorage
   useEffect(() => {
-    const savedCoins = localStorage.getItem('userCoins');
-    if (savedCoins) {
-      setCoins(parseInt(savedCoins, 10));
-    }
-
-    // Load uploaded videos from other users only
-    const uploadedVideos = JSON.parse(localStorage.getItem('uploadedVideos') || '[]');
-    const currentUser = localStorage.getItem('currentUser') || 'user1';
-    
-    // Sample videos
-    const sampleVideos: VideoItem[] = [
-      {
-        id: "1",
-        title: "Amazing Landscape Photography Tips for Beginners",
-        thumbnail: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=320&h=180&fit=crop",
-        channel: "PhotoMaster",
-        views: "15K views",
-        duration: "8:45",
-        url: "https://youtube.com/watch?v=dQw4w9WgXcQ",
-        videoId: "dQw4w9WgXcQ"
-      },
-      {
-        id: "2", 
-        title: "How to Start Your YouTube Channel in 2024",
-        thumbnail: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=320&h=180&fit=crop",
-        channel: "CreatorHub",
-        views: "32K views", 
-        duration: "12:30",
-        url: "https://youtube.com/watch?v=9bZkp7q19f0",
-        videoId: "9bZkp7q19f0"
-      },
-      {
-        id: "3",
-        title: "Cooking the Perfect Pasta - Italian Secrets",
-        thumbnail: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=320&h=180&fit=crop",
-        channel: "ChefMario",
-        views: "8.2K views",
-        duration: "6:15", 
-        url: "https://youtube.com/watch?v=jNQXAC9IVRw",
-        videoId: "jNQXAC9IVRw"
+    const fetchData = async () => {
+      // Get user coins
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('coins')
+        .single();
+      
+      if (profile) {
+        setCoins(profile.coins);
       }
-    ];
 
-    // Filter out current user's videos and show daily rotation of others
-    const otherUsersVideos = uploadedVideos.filter((video: any) => video.uploadedBy !== currentUser);
-    
-    // Show one user video per day (rotate based on day of year)
-    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
-    const selectedUserVideo = otherUsersVideos.length > 0 ? 
-      otherUsersVideos[dayOfYear % otherUsersVideos.length] : null;
+      // Get videos from other users only (excluding current user)
+      const { data: otherUserVideos } = await supabase
+        .from('videos')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    const userVideos = selectedUserVideo ? [{
-      id: selectedUserVideo.id,
-      title: selectedUserVideo.title || "Community Video",
-      thumbnail: selectedUserVideo.thumbnail || `https://img.youtube.com/vi/${selectedUserVideo.videoId}/maxresdefault.jpg`,
-      channel: "Community Creator",
-      views: "Community Upload",
-      duration: "??:??",
-      url: selectedUserVideo.url,
-      videoId: selectedUserVideo.videoId,
-      isUserUploaded: true
-    }] : [];
+      // Sample videos
+      const sampleVideos: VideoItem[] = [
+        {
+          id: "1",
+          title: "Amazing Landscape Photography Tips for Beginners",
+          thumbnail: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=320&h=180&fit=crop",
+          channel: "PhotoMaster",
+          views: "15K views",
+          duration: "8:45",
+          url: "https://youtube.com/watch?v=dQw4w9WgXcQ",
+          videoId: "dQw4w9WgXcQ"
+        },
+        {
+          id: "2", 
+          title: "How to Start Your YouTube Channel in 2024",
+          thumbnail: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=320&h=180&fit=crop",
+          channel: "CreatorHub",
+          views: "32K views", 
+          duration: "12:30",
+          url: "https://youtube.com/watch?v=9bZkp7q19f0",
+          videoId: "9bZkp7q19f0"
+        },
+        {
+          id: "3",
+          title: "Cooking the Perfect Pasta - Italian Secrets",
+          thumbnail: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=320&h=180&fit=crop",
+          channel: "ChefMario",
+          views: "8.2K views",
+          duration: "6:15", 
+          url: "https://youtube.com/watch?v=jNQXAC9IVRw",
+          videoId: "jNQXAC9IVRw"
+        }
+      ];
 
-    setVideos([...sampleVideos, ...userVideos]);
+      // Show one user video per day (rotate based on day of year)
+      const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
+      const selectedUserVideo = otherUserVideos && otherUserVideos.length > 0 ? 
+        otherUserVideos[dayOfYear % otherUserVideos.length] : null;
+
+      const userVideos = selectedUserVideo ? [{
+        id: selectedUserVideo.id,
+        title: selectedUserVideo.title || "Community Video",
+        thumbnail: selectedUserVideo.thumbnail_url || `https://img.youtube.com/vi/${selectedUserVideo.youtube_url.split('v=')[1]?.split('&')[0]}/maxresdefault.jpg`,
+        channel: "Community Creator",
+        views: "Community Upload",
+        duration: "??:??",
+        url: selectedUserVideo.youtube_url,
+        videoId: selectedUserVideo.youtube_url.split('v=')[1]?.split('&')[0] || '',
+        isUserUploaded: true
+      }] : [];
+
+      setVideos([...sampleVideos, ...userVideos]);
+    };
+
+    fetchData();
   }, []);
 
-  const handleWatched = (videoId: string, coinsEarned: number) => {
+  const handleWatched = async (videoId: string, coinsEarned: number) => {
     if (watchedVideos.has(videoId)) {
       toast({
         title: "Already earned!",
@@ -105,39 +113,32 @@ const EarnPage = () => {
       return;
     }
 
-    // Check for fraud prevention
-    const earnHistory = JSON.parse(localStorage.getItem('earnHistory') || '[]');
-    const recentEarns = earnHistory.filter((earn: any) => 
-      Date.now() - earn.timestamp < 24 * 60 * 60 * 1000 // 24 hours
-    );
-    
-    if (recentEarns.length > 50) { // Daily limit
+    try {
+      // Update user coins in database
+      const newCoins = coins + coinsEarned;
+      const { error } = await supabase
+        .from('profiles')
+        .update({ coins: newCoins })
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+
+      if (error) {
+        throw error;
+      }
+
+      setWatchedVideos(prev => new Set([...prev, videoId]));
+      setCoins(newCoins);
+      
       toast({
-        title: "Daily limit reached",
-        description: "You've reached your daily earning limit. Try again tomorrow!",
+        title: `+${coinsEarned} coins earned!`,
+        description: "Great job! Keep watching to earn more coins.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error earning coins",
+        description: "Please try again later",
         variant: "destructive",
       });
-      return;
     }
-
-    setWatchedVideos(prev => new Set([...prev, videoId]));
-    const newCoins = coins + coinsEarned;
-    setCoins(newCoins);
-    
-    // Save updated coins and earn history
-    localStorage.setItem('userCoins', newCoins.toString());
-    earnHistory.push({
-      videoId,
-      coinsEarned,
-      timestamp: Date.now(),
-      type: 'watch'
-    });
-    localStorage.setItem('earnHistory', JSON.stringify(earnHistory));
-    
-    toast({
-      title: `+${coinsEarned} coins earned!`,
-      description: "Great job! Keep watching to earn more coins.",
-    });
   };
 
   const handlePlayVideo = (video: VideoItem) => {

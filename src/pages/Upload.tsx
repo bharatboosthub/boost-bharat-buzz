@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Upload, ExternalLink, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const UploadPage = () => {
   const [videoUrl, setVideoUrl] = useState("");
@@ -16,20 +17,22 @@ const UploadPage = () => {
   const [hasUsedFreeUpload, setHasUsedFreeUpload] = useState(false);
   const navigate = useNavigate();
 
-  // Load coins and upload status from localStorage
   useEffect(() => {
-    const savedCoins = localStorage.getItem('userCoins');
-    // Get current user ID (could be email or unique identifier)
-    const currentUser = localStorage.getItem('currentUser') || 'user1';
-    const userUploadKey = `hasUsedFreeUpload_${currentUser}`;
-    const usedFreeUpload = localStorage.getItem(userUploadKey);
-    
-    if (savedCoins) {
-      setCoins(parseInt(savedCoins, 10));
-    }
-    if (usedFreeUpload === 'true') {
-      setHasUsedFreeUpload(true);
-    }
+    const fetchUserData = async () => {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+      } else if (profile) {
+        setCoins(profile.coins);
+        setHasUsedFreeUpload(profile.free_upload_used);
+      }
+    };
+
+    fetchUserData();
   }, []);
 
   const extractVideoId = (url: string) => {
@@ -98,33 +101,38 @@ const UploadPage = () => {
       // Fetch proper thumbnail using YouTube API
       const thumbnail = await fetchVideoThumbnail(videoId);
       
-      // Store the uploaded video in localStorage
-      const uploadedVideos = JSON.parse(localStorage.getItem('uploadedVideos') || '[]');
-      const currentUser = localStorage.getItem('currentUser') || 'user1';
-      
-      const newVideo = {
-        id: Date.now().toString(),
-        url: videoUrl,
-        videoId: videoId,
-        title: videoTitle.trim(),
-        thumbnail: thumbnail,
-        uploadedAt: new Date().toISOString(),
-        uploadedBy: currentUser,
-        isFirstUpload: !hasUsedFreeUpload,
-        isUserUploaded: true
-      };
-      
-      uploadedVideos.push(newVideo);
-      localStorage.setItem('uploadedVideos', JSON.stringify(uploadedVideos));
-      
-      // Handle coin deduction and free upload status (per account)
-      const userUploadKey = `hasUsedFreeUpload_${currentUser}`;
+      // Store the uploaded video in Supabase
+      const { data: user } = await supabase.auth.getUser();
+      const { error: uploadError } = await supabase
+        .from('videos')
+        .insert({
+          title: videoTitle.trim(),
+          youtube_url: videoUrl,
+          thumbnail_url: thumbnail,
+          user_id: user.user?.id!
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Update user profile - deduct coins and mark free upload as used
       if (!hasUsedFreeUpload) {
-        localStorage.setItem(userUploadKey, 'true');
+        // First upload is free, just mark as used
+        await supabase
+          .from('profiles')
+          .update({ free_upload_used: true })
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+        
         setHasUsedFreeUpload(true);
       } else {
+        // Deduct coins for subsequent uploads
         const newCoins = coins - 5;
-        localStorage.setItem('userCoins', newCoins.toString());
+        await supabase
+          .from('profiles')
+          .update({ coins: newCoins })
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+        
         setCoins(newCoins);
       }
 

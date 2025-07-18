@@ -5,16 +5,27 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, Play, TrendingUp, Gift, LogOut, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 const MyVideosSection = () => {
   const [myVideos, setMyVideos] = useState<any[]>([]);
 
   useEffect(() => {
-    const uploadedVideos = JSON.parse(localStorage.getItem('uploadedVideos') || '[]');
-    const currentUser = localStorage.getItem('currentUser') || 'user1';
-    
-    const userVideos = uploadedVideos.filter((video: any) => video.uploadedBy === currentUser);
-    setMyVideos(userVideos);
+    const fetchMyVideos = async () => {
+      const { data: videos, error } = await supabase
+        .from('videos')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching videos:', error);
+      } else {
+        setMyVideos(videos || []);
+      }
+    };
+
+    fetchMyVideos();
   }, []);
 
   if (myVideos.length === 0) {
@@ -32,20 +43,20 @@ const MyVideosSection = () => {
       {myVideos.map((video) => (
         <div key={video.id} className="flex gap-4 p-4 bg-accent rounded-lg">
           <img 
-            src={video.thumbnail || `https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`}
+            src={video.thumbnail_url || `https://img.youtube.com/vi/${video.youtube_url.split('v=')[1]?.split('&')[0]}/maxresdefault.jpg`}
             alt={video.title}
             className="w-24 h-14 object-cover rounded"
           />
           <div className="flex-1 min-w-0">
             <h4 className="font-medium truncate">{video.title}</h4>
             <p className="text-sm text-muted-foreground">
-              Uploaded {new Date(video.uploadedAt).toLocaleDateString()}
+              Uploaded {new Date(video.created_at).toLocaleDateString()}
             </p>
             <Button
               size="sm"
               variant="ghost"
               className="mt-2"
-              onClick={() => window.open(video.url, '_blank')}
+              onClick={() => window.open(video.youtube_url, '_blank')}
             >
               <ExternalLink className="w-3 h-3 mr-1" />
               View on YouTube
@@ -60,17 +71,38 @@ const MyVideosSection = () => {
 const Dashboard = () => {
   const [coins, setCoins] = useState(0);
   const [hasUsedFreeUpload, setHasUsedFreeUpload] = useState(false);
+  const [username, setUsername] = useState("");
+  const [videosUploaded, setVideosUploaded] = useState(0);
   const navigate = useNavigate();
 
-  // Load coins from localStorage on component mount
   useEffect(() => {
-    const savedCoins = localStorage.getItem('userCoins');
-    if (savedCoins) {
-      setCoins(parseInt(savedCoins, 10));
-    }
+    const fetchUserData = async () => {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+      } else if (profile) {
+        setCoins(profile.coins);
+        setHasUsedFreeUpload(profile.free_upload_used);
+        setUsername(profile.username || "Creator");
+      }
+
+      // Get video count
+      const { count } = await supabase
+        .from('videos')
+        .select('*', { count: 'exact', head: true });
+      
+      setVideosUploaded(count || 0);
+    };
+
+    fetchUserData();
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     navigate("/");
   };
 
@@ -83,7 +115,7 @@ const Dashboard = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Welcome back, Creator! 👋</h1>
+              <h1 className="text-2xl font-bold">Welcome back, {username}! 👋</h1>
               <p className="text-muted-foreground">Ready to boost your YouTube channel?</p>
             </div>
             
@@ -194,11 +226,7 @@ const Dashboard = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Videos Uploaded:</span>
-                  <span className="font-semibold">0</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Videos Watched:</span>
-                  <span className="font-semibold">0</span>
+                  <span className="font-semibold">{videosUploaded}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Free Uploads Left:</span>

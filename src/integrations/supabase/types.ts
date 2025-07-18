@@ -14,7 +14,110 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          coins: number
+          created_at: string
+          email: string | null
+          free_upload_used: boolean
+          id: string
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          coins?: number
+          created_at?: string
+          email?: string | null
+          free_upload_used?: boolean
+          id?: string
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          coins?: number
+          created_at?: string
+          email?: string | null
+          free_upload_used?: boolean
+          id?: string
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      videos: {
+        Row: {
+          created_at: string
+          id: string
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          youtube_url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          youtube_url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          youtube_url?: string
+        }
+        Relationships: []
+      }
+      watch_sessions: {
+        Row: {
+          coins_claimed: boolean
+          completed_at: string | null
+          id: string
+          screenshot_uploaded: boolean
+          user_id: string
+          video_id: string
+          watch_completed: boolean
+          watched_at: string
+        }
+        Insert: {
+          coins_claimed?: boolean
+          completed_at?: string | null
+          id?: string
+          screenshot_uploaded?: boolean
+          user_id: string
+          video_id: string
+          watch_completed?: boolean
+          watched_at?: string
+        }
+        Update: {
+          coins_claimed?: boolean
+          completed_at?: string | null
+          id?: string
+          screenshot_uploaded?: boolean
+          user_id?: string
+          video_id?: string
+          watch_completed?: boolean
+          watched_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watch_sessions_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
